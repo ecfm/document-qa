@@ -4,7 +4,7 @@ from utils.call_aws_api import call_api
 from utils.load_amazon_reviews import load_data
 
 # Constants
-MAX_REVIEWS = 100
+MAX_REVIEWS = 1000
 MAX_CHARS_PER_REVIEW = 2000
 
 def validate_review_length(review: str) -> str:
@@ -100,9 +100,9 @@ def handle_download_reviews():
     num_examples = st.number_input(
         "Number of Examples *", 
         min_value=1, 
-        max_value=100, 
+        max_value=MAX_REVIEWS, 
         value=10,
-        help="Required. Choose between 1-100 reviews to download."
+        help=f"Required. Choose between 1-{MAX_REVIEWS} reviews to download."
     )
     
     if st.button("Load Data"):
