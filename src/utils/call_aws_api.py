@@ -20,7 +20,7 @@ def call_api(category, review, retry=MAX_RETRY, status_container=None):
         retry_status = status_container.empty() if status_container else None
         for i in range(30, 0, -1):
             if retry_status:
-                retry_status.text(f"Timeout error. Retrying in {i} seconds. Retries left: {retry}")
+                retry_status.text(f"Initial run could trigger a timeout error. Retrying in {i} seconds. Retries left: {retry}")
             time.sleep(1)
         if retry_status:
             retry_status.empty()
