@@ -6,7 +6,7 @@ import streamlit as st
 url = st.secrets["AWS_API_URL"]
 headers = {'x-api-key': st.secrets["AWS_API_KEY"]}
 
-MAX_RETRY = 10
+MAX_RETRY = 15
 
 def call_api(category, review, retry=MAX_RETRY, status_container=None): 
     request_body = {
@@ -16,11 +16,11 @@ def call_api(category, review, retry=MAX_RETRY, status_container=None):
     response = requests.post(url, json=request_body, headers=headers)
     if 'generation' in response.json():
         return response.json()['generation']
-    elif 'timed out' in response.json()['errorMessage'] and retry > 0:
+    elif 'errorMessage' in response.json() and retry > 0:
         retry_status = status_container.empty() if status_container else None
-        for i in range(30, 0, -1):
+        for i in range(10, 0, -1):
             if retry_status:
-                retry_status.text(f"Initial run could trigger a timeout error. Retrying in {i} seconds. Retries left: {retry}")
+                retry_status.text(f"Initial run requires waiting for the LLM to be loaded. Retrying in {i} seconds. Retries left: {retry}")
             time.sleep(1)
         if retry_status:
             retry_status.empty()
