@@ -6,7 +6,7 @@ import streamlit as st
 url = st.secrets["AWS_API_URL"]
 headers = {'x-api-key': st.secrets["AWS_API_KEY"]}
 
-MAX_RETRY = 15
+MAX_RETRY = 5
 
 def call_api(category, review, retry=MAX_RETRY, status_container=None): 
     request_body = {
@@ -18,7 +18,7 @@ def call_api(category, review, retry=MAX_RETRY, status_container=None):
         return response.json()['generation']
     elif 'errorMessage' in response.json() and retry > 0:
         retry_status = status_container.empty() if status_container else None
-        for i in range(10, 0, -1):
+        for i in range(50, 0, -1):
             if retry_status:
                 retry_status.text(f"Initial run requires waiting for the LLM to be loaded. Retrying in {i} seconds. Retries left: {retry}")
             time.sleep(1)
