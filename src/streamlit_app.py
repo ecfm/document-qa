@@ -148,7 +148,7 @@ def handle_llm_submission():
         )
         input_df, review_column = process_text_input(review_input)
     
-    if st.button("Submit Reviews to LLM", disabled=not category_name):
+    if st.button("Submit Reviews to LLM (This may take a few minutes)", disabled=not category_name):
         output_df = process_reviews(input_df, review_column, category_name)
         csv_response = output_df.to_csv(index=False).encode('utf-8')
         st.download_button("Download Response CSV", csv_response, f"{category_name}-response.csv", "text/csv")
