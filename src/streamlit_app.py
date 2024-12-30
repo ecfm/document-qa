@@ -83,20 +83,28 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
     
     # Validate review lengths
     valid_reviews = [validate_review_length(review) for review in reviews]
-    input_df = input_df.copy()  # Create a copy to avoid modifying the original
+    input_df = input_df.copy()
     input_df[review_column] = valid_reviews
     
-    # Initialize output DataFrame with all columns
     output_df = input_df.copy()
-    output_df['LLM Response'] = ''  # Add the new column with empty strings
+    output_df['LLM Response'] = ''
     
     header_placeholder.subheader("Input & Results")
     progress_text = st.empty()
     progress_bar = st.progress(0)
     status_container = st.empty()
     
+    # Add pause button
+    stop_button = st.empty()
+    is_stopped = stop_button.button("Stop Processing")
+    
     total = len(valid_reviews)
     for i, row in input_df.iterrows():
+        # Check pause state at start of each iteration
+        if is_stopped:
+            st.warning("Processing stopped.")
+            break
+        
         progress_text.text(f"Processing review {i+1}/{total} (This may take a few minutes)")
         progress_bar.progress((i+1)/total)
         review = row[review_column]
@@ -107,6 +115,7 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
     progress_text.empty()
     status_container.empty()
     progress_bar.empty()
+    stop_button.empty()
     return output_df
 
 def handle_download_reviews():
