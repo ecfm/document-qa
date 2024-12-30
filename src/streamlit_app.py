@@ -4,6 +4,7 @@ from utils.call_aws_api import call_api
 from utils.load_amazon_reviews import load_data
 from docx import Document
 import spacy
+spacy.download('en_core_web_sm')
 nlp = spacy.load('en_core_web_sm')
 
 def split_into_paragraphs(text, paragraph_min_len=10, paragraph_max_len=50, sentence_min_len=8, sentence_max_len=200):
