@@ -100,7 +100,6 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
     
     total = len(valid_reviews)
     for i, row in input_df.iterrows():
-        # Check pause state at start of each iteration
         if is_stopped:
             st.warning("Processing stopped. Partial results are shown below and can be downloaded.")
             break
@@ -116,7 +115,6 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
     status_container.empty()
     progress_bar.empty()
     stop_button.empty()
-    df_placeholder.dataframe(output_df, use_container_width=True)
     return output_df
 
 def handle_download_reviews():
