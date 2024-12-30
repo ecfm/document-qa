@@ -7,10 +7,7 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 import nltk
 
 # Download required NLTK data
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
+nltk.download('punkt_tab')
 
 def split_into_paragraphs(text, paragraph_min_len=10, paragraph_max_len=50, sentence_min_len=8, sentence_max_len=200):
     # Simple sentence splitting on common punctuation
