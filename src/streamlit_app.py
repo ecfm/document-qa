@@ -18,7 +18,7 @@ def split_into_paragraphs(text, sentence_min_len=8, sentence_max_len=200):
     skipped_long_sentences = []
     
     for sentence in sentences:
-        wc = len(word_tokenize(sentence))
+        wc = len([word for word in word_tokenize(sentence) if word.isalnum()])
         if sentence_min_len <= wc <= sentence_max_len:
             filtered_sentences.append(sentence)
         else:
@@ -102,7 +102,7 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
     for i, row in input_df.iterrows():
         # Check pause state at start of each iteration
         if is_stopped:
-            st.warning("Processing stopped.")
+            st.warning("Processing stopped. Partial results are shown below and can be downloaded.")
             break
         
         progress_text.text(f"Processing review {i+1}/{total} (This may take a few minutes)")
@@ -116,6 +116,7 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
     status_container.empty()
     progress_bar.empty()
     stop_button.empty()
+    df_placeholder.dataframe(output_df, use_container_width=True)
     return output_df
 
 def handle_download_reviews():
