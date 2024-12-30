@@ -2,7 +2,39 @@ import streamlit as st
 import pandas as pd
 from utils.call_aws_api import call_api
 from utils.load_amazon_reviews import load_data
+from docx import Document
+import spacy
+nlp = spacy.load('en_core_web_sm')
 
+def split_into_paragraphs(text, paragraph_min_len=10, paragraph_max_len=50, sentence_min_len=8, sentence_max_len=200):
+    # Tokenize the text into sentences
+    sentences = nlp(text).sents
+    filtered_sentences = []
+    sentence_word_counts = []
+    skipped_short_sentences = []
+    skipped_long_sentences = []
+    for sentence in sentences:
+        wc = len(sentence)
+        if sentence_min_len <= wc <= sentence_max_len:
+            sentence_word_counts.append(wc)
+            filtered_sentences.append(sentence.text)
+        else:
+            if wc < sentence_min_len:
+                skipped_short_sentences.append(str(sentence))
+            else:
+                skipped_long_sentences.append(str(sentence))
+    
+    # Display skipped sentences in Streamlit if any exist
+    if skipped_short_sentences:
+        st.info("The following sentences were skipped due to being too short:")
+        for sent in skipped_short_sentences:
+            st.write(f"- {sent}")
+    if skipped_long_sentences:
+        st.info("The following sentences were skipped due to being too long:")
+        for sent in skipped_long_sentences:
+            st.write(f"- {sent}")
+    
+    return filtered_sentences
 # Constants
 MAX_REVIEWS = 1000
 MAX_CHARS_PER_REVIEW = 2000
@@ -22,17 +54,28 @@ def validate_reviews_count(reviews: list) -> list:
 def process_file_upload(upload_file) -> tuple[pd.DataFrame, str]:
     """Process uploaded file and return dataframe and review column name."""
     review_column = 'Review'
-    if upload_file.name.lower().split('.')[-1] == "csv":
-        df = pd.read_csv(upload_file)
+    file_type = upload_file.name.lower().split('.')[-1]
+    if file_type == "csv" or file_type == "xlsx":
+        if file_type == "csv":
+            df = pd.read_csv(upload_file)
+        else:
+            df = pd.read_excel(upload_file)
         if len(df.columns) > 1:
             review_column = st.selectbox("Select Review Column:", df.columns.tolist())
         else:
             review_column = df.columns[0]
         return df, review_column
-    else:  # txt file
+    elif file_type == "txt":
         content = upload_file.read().decode()
-        reviews = [r.strip() for r in content.split('\n') if r.strip()]
+        reviews = split_into_paragraphs(content)
         return pd.DataFrame({review_column: reviews}), review_column
+    elif file_type == "docx":
+        doc = Document(upload_file)
+        content = "\n".join([para.text for para in doc.paragraphs])
+        reviews = split_into_paragraphs(content)
+        return pd.DataFrame({review_column: reviews}), review_column
+    else:
+        raise ValueError(f"Unsupported file type: {file_type}")
 
 def process_text_input(review_input: str) -> tuple[pd.DataFrame, str]:
     """Process text input and return dataframe and review column name."""
@@ -71,7 +114,6 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
     progress_text.empty()
     status_container.empty()
     progress_bar.empty()
-    
     return output_df
 
 def handle_download_reviews():
@@ -135,8 +177,8 @@ def handle_llm_submission():
     
     upload_file = st.file_uploader(
         "Upload File (Optional)", 
-        type=["csv", "txt"],
-        help="Optional. Upload a .csv file with headers or a .txt file with one review per line"
+        type=["csv", "txt", "docx", "xlsx"],
+        help="Optional. Upload a .csv file or an Excel file with headers, a .txt file, or a .docx file."
     )
     
     if upload_file is not None:
