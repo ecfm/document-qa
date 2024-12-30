@@ -27,15 +27,32 @@ def split_into_paragraphs(text, paragraph_min_len=10, paragraph_max_len=50, sent
             else:
                 skipped_long_sentences.append(sentence)
     
-    # Display skipped sentences in Streamlit if any exist
+    # Display skipped sentences in scrollable containers
     if skipped_short_sentences:
         st.info("The following sentences were skipped due to being too short:")
-        for sent in skipped_short_sentences:
-            st.write(f"- {sent}")
+        st.markdown("""
+            <style>
+                .scrollable-box {
+                    height: 150px;
+                    overflow-y: scroll;
+                    border: 1px solid #ccc;
+                    padding: 10px;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+        with st.container():
+            st.markdown('<div class="scrollable-box">', unsafe_allow_html=True)
+            for sent in skipped_short_sentences:
+                st.write(f"- {sent}")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
     if skipped_long_sentences:
         st.info("The following sentences were skipped due to being too long:")
-        for sent in skipped_long_sentences:
-            st.write(f"- {sent}")
+        with st.container():
+            st.markdown('<div class="scrollable-box">', unsafe_allow_html=True)
+            for sent in skipped_long_sentences:
+                st.write(f"- {sent}")
+            st.markdown('</div>', unsafe_allow_html=True)
     
     return filtered_sentences
 # Constants
@@ -86,7 +103,7 @@ def process_text_input(review_input: str) -> tuple[pd.DataFrame, str]:
     reviews = [r.strip() for r in review_input.split('\n') if r.strip()]
     return pd.DataFrame({review_column: reviews}), review_column
 
-def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: str) -> pd.DataFrame:
+def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: str, display_container: st.container) -> pd.DataFrame:
     """Process reviews through the LLM and return results."""
     reviews = input_df[review_column].tolist()
     reviews = validate_reviews_count(reviews)
@@ -103,7 +120,6 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
     progress_text = st.empty()
     progress_bar = st.progress(0)
     status_container = st.empty()
-    output_container = st.empty()
     
     total = len(valid_reviews)
     for i, row in input_df.iterrows():
@@ -112,7 +128,8 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
         review = row[review_column]
         response = call_api(category_name, review, status_container=status_container)
         output_df.at[i, 'LLM Response'] = response
-        output_container.dataframe(output_df)
+        with display_container:
+            st.dataframe(output_df, use_container_width=True)
     
     progress_text.empty()
     status_container.empty()
@@ -186,15 +203,23 @@ def handle_llm_submission():
     
     if upload_file is not None:
         input_df, review_column = process_file_upload(upload_file)
+        display_container = st.container()
+        with display_container:
+            st.subheader("Data & Results")
+            st.dataframe(input_df, use_container_width=True)
     else:
         review_input = st.text_area(
             "Enter Reviews; separate multiple reviews by new lines (Optional, not needed if file uploaded)",
             help="Enter one or more reviews, each on a new line. Not needed if you uploaded a file above."
         )
         input_df, review_column = process_text_input(review_input)
+        display_container = st.container()
+        with display_container:
+            st.subheader("Data & Results") 
+            st.dataframe(input_df, use_container_width=True)
     
     if st.button("Submit Reviews to LLM", disabled=not category_name):
-        output_df = process_reviews(input_df, review_column, category_name)
+        output_df = process_reviews(input_df, review_column, category_name, display_container)
         csv_response = output_df.to_csv(index=False).encode('utf-8')
         st.download_button("Download Response CSV", csv_response, f"{category_name}-response.csv", "text/csv")
 
