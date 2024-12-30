@@ -3,27 +3,26 @@ import pandas as pd
 from utils.call_aws_api import call_api
 from utils.load_amazon_reviews import load_data
 from docx import Document
-import spacy
+from nltk.tokenize import sent_tokenize, word_tokenize 
 
-nlp = spacy.load('en_core_web_sm')
 
 def split_into_paragraphs(text, paragraph_min_len=10, paragraph_max_len=50, sentence_min_len=8, sentence_max_len=200):
-    # Tokenize the text into sentences
-    sentences = nlp(text).sents
+    # Simple sentence splitting on common punctuation
+    sentences = sent_tokenize(text)
+    
     filtered_sentences = []
-    sentence_word_counts = []
     skipped_short_sentences = []
     skipped_long_sentences = []
+    
     for sentence in sentences:
-        wc = len(sentence)
+        wc = len(word_tokenize(sentence))
         if sentence_min_len <= wc <= sentence_max_len:
-            sentence_word_counts.append(wc)
-            filtered_sentences.append(sentence.text)
+            filtered_sentences.append(sentence)
         else:
             if wc < sentence_min_len:
-                skipped_short_sentences.append(str(sentence))
+                skipped_short_sentences.append(sentence)
             else:
-                skipped_long_sentences.append(str(sentence))
+                skipped_long_sentences.append(sentence)
     
     # Display skipped sentences in Streamlit if any exist
     if skipped_short_sentences:
