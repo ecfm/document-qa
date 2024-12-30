@@ -2,3 +2,6 @@ streamlit
 datasets
 pytest
 pytest-mock
+spacy
+docx
+pandas
