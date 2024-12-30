@@ -4,7 +4,13 @@ from utils.call_aws_api import call_api
 from utils.load_amazon_reviews import load_data
 from docx import Document
 from nltk.tokenize import sent_tokenize, word_tokenize 
+import nltk
 
+# Download required NLTK data
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
 def split_into_paragraphs(text, paragraph_min_len=10, paragraph_max_len=50, sentence_min_len=8, sentence_max_len=200):
     # Simple sentence splitting on common punctuation
