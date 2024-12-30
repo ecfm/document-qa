@@ -9,7 +9,7 @@ import nltk
 # Download required NLTK data
 nltk.download('punkt_tab')
 
-def split_into_paragraphs(text, paragraph_min_len=10, paragraph_max_len=50, sentence_min_len=8, sentence_max_len=200):
+def split_into_paragraphs(text, sentence_min_len=8, sentence_max_len=200):
     # Simple sentence splitting on common punctuation
     sentences = sent_tokenize(text)
     
@@ -26,33 +26,6 @@ def split_into_paragraphs(text, paragraph_min_len=10, paragraph_max_len=50, sent
                 skipped_short_sentences.append(sentence)
             else:
                 skipped_long_sentences.append(sentence)
-    
-    # Display skipped sentences in scrollable containers
-    if skipped_short_sentences:
-        st.info("The following sentences were skipped due to being too short:")
-        st.markdown("""
-            <style>
-                .scrollable-box {
-                    height: 150px;
-                    overflow-y: scroll;
-                    border: 1px solid #ccc;
-                    padding: 10px;
-                }
-            </style>
-        """, unsafe_allow_html=True)
-        with st.container():
-            st.markdown('<div class="scrollable-box">', unsafe_allow_html=True)
-            for sent in skipped_short_sentences:
-                st.write(f"- {sent}")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-    if skipped_long_sentences:
-        st.info("The following sentences were skipped due to being too long:")
-        with st.container():
-            st.markdown('<div class="scrollable-box">', unsafe_allow_html=True)
-            for sent in skipped_long_sentences:
-                st.write(f"- {sent}")
-            st.markdown('</div>', unsafe_allow_html=True)
     
     return filtered_sentences
 # Constants
