@@ -3,5 +3,5 @@ datasets
 pytest
 pytest-mock
 spacy
-docx
+python-docx
 pandas
