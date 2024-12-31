@@ -46,8 +46,9 @@ def validate_reviews_count(reviews: list) -> list:
 
 def process_file_upload(upload_file) -> tuple[pd.DataFrame, str]:
     """Process uploaded file and return dataframe and review column name."""
-    review_column = 'Review'
+    review_column = 'Sentence'
     file_type = upload_file.name.lower().split('.')[-1]
+    
     if file_type == "csv" or file_type == "xlsx":
         if file_type == "csv":
             df = pd.read_csv(upload_file)
@@ -58,15 +59,18 @@ def process_file_upload(upload_file) -> tuple[pd.DataFrame, str]:
         else:
             review_column = df.columns[0]
         return df, review_column
+
     elif file_type == "txt":
         content = upload_file.read().decode()
-        reviews = split_into_paragraphs(content)
-        return pd.DataFrame({review_column: reviews}), review_column
+        sentences = split_into_paragraphs(content)
+        return pd.DataFrame({review_column: sentences}), review_column
+    
     elif file_type == "docx":
         doc = Document(upload_file)
-        content = "\n".join([para.text for para in doc.paragraphs])
-        reviews = split_into_paragraphs(content)
-        return pd.DataFrame({review_column: reviews}), review_column
+        content = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+        sentences = split_into_paragraphs(content)
+        return pd.DataFrame({review_column: sentences}), review_column
+    
     else:
         raise ValueError(f"Unsupported file type: {file_type}")
 
@@ -167,6 +171,42 @@ def handle_download_reviews():
                 mime="text/csv"
             )
 
+def handle_file_conversion():
+    """Handle the file conversion tab functionality."""
+    st.header("Convert Files to CSV")
+    
+    upload_file = st.file_uploader(
+        "Upload File (Optional)", 
+        type=["txt", "docx"],
+        help="Optional. Upload a .txt file or a .docx file."
+    )
+    
+    if upload_file is not None:
+        input_df, review_column = process_file_upload(upload_file)
+        st.dataframe(input_df, use_container_width=True)
+        csv = input_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download CSV",
+            data=csv,
+            file_name="converted_file.csv",
+            mime="text/csv"
+        )
+    else:
+        text_input = st.text_area(
+            "Enter Text (Optional, not needed if file uploaded)",
+            help="Enter text that will be split into sentences. Not needed if you uploaded a file above."
+        )
+        if text_input:
+            input_df, review_column = process_text_input(text_input)
+            st.dataframe(input_df, use_container_width=True)
+            csv = input_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Download CSV",
+                data=csv,
+                file_name="converted_text.csv",
+                mime="text/csv"
+            )
+
 def handle_llm_submission():
     """Handle the LLM submission tab functionality."""
     st.header("Submit Reviews to LLM")
@@ -177,9 +217,9 @@ def handle_llm_submission():
     )
     
     upload_file = st.file_uploader(
-        "Upload File (Optional)", 
-        type=["csv", "txt", "docx", "xlsx"],
-        help="Optional. Upload a .csv file or an Excel file with headers, a .txt file, or a .docx file."
+        "Upload File *", 
+        type=["csv", "xlsx"],
+        help="Required. Upload a .csv file or an Excel file with headers."
     )
     
     if upload_file is not None:
@@ -190,35 +230,26 @@ def handle_llm_submission():
         with display_container:
             header_placeholder.subheader("Input")
             df_placeholder.dataframe(input_df, use_container_width=True)
-    else:
-        review_input = st.text_area(
-            "Enter Reviews; separate multiple reviews by new lines (Optional, not needed if file uploaded)",
-            help="Enter one or more reviews, each on a new line. Not needed if you uploaded a file above."
-        )
-        input_df, review_column = process_text_input(review_input)
-        display_container = st.container()
-        header_placeholder = display_container.empty()
-        df_placeholder = display_container.empty()
-        with display_container:
-            header_placeholder.subheader("Input") 
-            df_placeholder.dataframe(input_df, use_container_width=True)
-    
-    if st.button("Submit Reviews to LLM", disabled=not category_name):
-        output_df = process_reviews(input_df, review_column, category_name, df_placeholder, header_placeholder)
-        csv_response = output_df.to_csv(index=False).encode('utf-8')
-        st.download_button("Download Response CSV", csv_response, f"{category_name}-response.csv", "text/csv")
+            
+            if st.button("Submit Reviews to LLM", disabled=not category_name):
+                output_df = process_reviews(input_df, review_column, category_name, df_placeholder, header_placeholder)
+                csv_response = output_df.to_csv(index=False).encode('utf-8')
+                st.download_button("Download Response CSV", csv_response, f"{category_name}-response.csv", "text/csv")
 
 def main():
     """Main function to run the Streamlit app."""
     st.title("Voice of Customer Analysis with Supervised-Finetuned LLM")
     
-    tab1, tab2 = st.tabs(["Download Reviews (Optional)", "Submit Reviews to LLM"])
+    tab1, tab2, tab3 = st.tabs(["Convert to CSV", "Submit to LLM", "Download Amazon Reviews"])
     
     with tab1:
-        handle_download_reviews()
+        handle_file_conversion()
     
     with tab2:
         handle_llm_submission()
+        
+    with tab3:
+        handle_download_reviews()
 
 if __name__ == "__main__":
     main()
