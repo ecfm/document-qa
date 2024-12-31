@@ -22,20 +22,21 @@ def split_into_paragraphs(text, sentence_min_len=8, sentence_max_len=200):
     sentences = sent_tokenize(text)
     
     filtered_sentences = []
-    skipped_short_sentences = []
-    skipped_long_sentences = []
+    discarded_sentences = []
     for sentence in sentences:
         sentence = sentence.strip().replace('\n', ' ')
         wc = len([word for word in word_tokenize(sentence) if word.isalnum()])
         if sentence_min_len <= wc <= sentence_max_len:
             filtered_sentences.append(sentence)
         else:
-            if wc < sentence_min_len:
-                skipped_short_sentences.append(sentence)
-            else:
-                skipped_long_sentences.append(sentence)
+            reason = "Too short" if wc < sentence_min_len else "Too long"
+            discarded_sentences.append({
+                "Sentence": sentence,
+                "Word Count": wc,
+                "Reason": reason
+            })
     
-    return filtered_sentences
+    return filtered_sentences, discarded_sentences
 # Constants
 MAX_REVIEWS = 1000
 MAX_CHARS_PER_REVIEW = 2000
@@ -52,45 +53,70 @@ def validate_reviews_count(reviews: list) -> list:
         return reviews[:MAX_REVIEWS]
     return reviews
 
-def process_file_upload(upload_file) -> tuple[pd.DataFrame, str]:
-    """Process uploaded file and return dataframe and review column name."""
-    input_column = 'Input'
+def process_text_document(content: str, sentence_min_len: int, sentence_max_len: int) -> tuple[list, list]:
+    """Process text content and return filtered and discarded sentences."""
+    content = remove_timestamps(content)
+    return split_into_paragraphs(content, sentence_min_len, sentence_max_len)
+
+def process_text_or_doc_file(upload_file, sentence_min_len: int, sentence_max_len: int) -> tuple[pd.DataFrame, str]:
+    """Process txt or docx file and return dataframe and column name."""
+    input_column = 'Sentences'
     file_type = upload_file.name.lower().split('.')[-1]
     
-    if file_type == "csv" or file_type == "xlsx":
-        if file_type == "csv":
-            df = pd.read_csv(upload_file)
-        else:
-            df = pd.read_excel(upload_file)
-        if len(df.columns) > 1:
-            input_column = st.selectbox("Select Review Column:", df.columns.tolist())
-        else:
-            input_column = df.columns[0]
-        # Clean timestamps from the selected column
-        df[input_column] = df[input_column].apply(remove_timestamps)
-        return df, input_column
-
-    elif file_type == "txt":
+    if file_type == "txt":
         content = upload_file.read().decode()
-        content = remove_timestamps(content)
-        sentences = split_into_paragraphs(content)
-        return pd.DataFrame({input_column: sentences}), input_column
-    
     elif file_type == "docx":
         doc = Document(upload_file)
-        content = "\n".join([remove_timestamps(para.text) for para in doc.paragraphs if para.text.strip()])
-        sentences = split_into_paragraphs(content)
-        return pd.DataFrame({input_column: sentences}), input_column
+        content = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+    else:
+        raise ValueError(f"Unsupported file type: {file_type}")
     
+    sentences, discarded = process_text_document(content, sentence_min_len, sentence_max_len)
+    return pd.DataFrame({input_column: sentences}), input_column, discarded
+
+def process_tabular_file(upload_file) -> tuple[pd.DataFrame, str]:
+    """Process csv or xlsx file and return dataframe and column name."""
+    file_type = upload_file.name.lower().split('.')[-1]
+    
+    if file_type == "csv":
+        df = pd.read_csv(upload_file)
+    elif file_type == "xlsx":
+        df = pd.read_excel(upload_file)
     else:
         raise ValueError(f"Unsupported file type: {file_type}")
 
-def process_text_input(review_input: str) -> tuple[pd.DataFrame, str]:
-    """Process text input and return dataframe and review column name."""
-    input_column = 'Input'
-    cleaned_input = remove_timestamps(review_input)
-    reviews = [r.strip() for r in cleaned_input.split('\n') if r.strip()]
-    return pd.DataFrame({input_column: reviews}), input_column
+    input_column = df.columns[0]
+    if len(df.columns) > 1:
+        input_column = st.selectbox("Select Review Column:", df.columns.tolist())
+    
+    # Clean timestamps from the selected column
+    df[input_column] = df[input_column].apply(remove_timestamps)
+    return df, input_column
+
+def display_results(sentences_df: pd.DataFrame, discarded_df: pd.DataFrame | None, output_filename: str):
+    """Display and provide download options for results."""
+    if discarded_df is not None and not discarded_df.empty:
+        st.subheader("Discarded Sentences")
+        st.dataframe(discarded_df, use_container_width=True)
+        
+        csv_discarded = discarded_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download CSV of Discarded Sentences",
+            data=csv_discarded,
+            file_name=f"discarded_{output_filename}",
+            mime="text/csv"
+        )
+    
+    st.subheader("Validated Sentences")
+    st.dataframe(sentences_df, use_container_width=True)
+    
+    csv_validated = sentences_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="Download CSV of Validated Sentences",
+        data=csv_validated,
+        file_name=output_filename,
+        mime="text/csv"
+    )
 
 def process_reviews(input_df: pd.DataFrame, input_column: str, category_name: str, df_placeholder: st.empty, header_placeholder: st.empty) -> pd.DataFrame:
     """Process reviews through the LLM and return results."""
@@ -132,6 +158,82 @@ def process_reviews(input_df: pd.DataFrame, input_column: str, category_name: st
     progress_bar.empty()
     stop_button.empty()
     return output_df
+
+def handle_file_conversion():
+    """Handle the file conversion tab functionality."""
+    st.header("Convert Files to CSV of Sentences")
+    
+    upload_file = st.file_uploader(
+        "Upload File (Optional)", 
+        type=["txt", "docx"],
+        help="Optional. Upload a text file (.txt) or a Word document (.docx)"
+    )
+    
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        output_filename = st.text_input("Output CSV File Name (Optional)", value="converted_file.csv", help="Enter the desired name for your output CSV file")  
+    with col2:
+        sentence_min_len = st.number_input("Min Words per Sentence (Optional)", value=8, min_value=1)
+    with col3:
+        sentence_max_len = st.number_input("Max Words per Sentence (Optional)", value=200, min_value=1)
+    
+    if upload_file is not None:
+        file_type = upload_file.name.lower().split('.')[-1]
+        
+        try:
+            if file_type in ["txt", "docx"]:
+                sentences_df, input_column, discarded = process_text_or_doc_file(
+                    upload_file, sentence_min_len, sentence_max_len
+                )
+                discarded_df = pd.DataFrame(discarded) if discarded else None
+            
+            display_results(sentences_df, discarded_df, output_filename)
+            
+        except Exception as e:
+            st.error(f"Error processing file: {str(e)}")
+    
+    else:
+        text_input = st.text_area(
+            "Enter Text (Optional, not needed if file uploaded)",
+            help="Enter text that will be split into sentences. Not needed if you uploaded a file above."
+        )
+        if text_input:
+            sentences, discarded = process_text_document(text_input, sentence_min_len, sentence_max_len)
+            sentences_df = pd.DataFrame({"Input": sentences})
+            discarded_df = pd.DataFrame(discarded) if discarded else None
+            
+            display_results(sentences_df, discarded_df, output_filename)
+
+def handle_llm_submission():
+    """Handle the LLM submission tab functionality."""
+    st.header("Submit Reviews to LLM")
+    
+    category_name = st.text_input(
+        "Review Category *",
+        help="Required. Enter the category that best describes these reviews (e.g. Electronics, Books, etc.)"
+    )
+    
+    upload_file = st.file_uploader(
+        "Upload File *", 
+        type=["csv", "xlsx"],
+        help="Required. Upload a .csv file or an Excel file with headers."
+    )
+    
+    if upload_file is not None:
+        input_df, input_column = process_tabular_file(upload_file)
+        display_container = st.container()
+        header_placeholder = display_container.empty()
+        df_placeholder = display_container.empty()
+        with display_container:
+            header_placeholder.subheader("Input")
+            df_placeholder.dataframe(input_df, use_container_width=True)
+            
+            if st.button("Submit Reviews to LLM", disabled=not category_name):
+                output_df = process_reviews(input_df, input_column, category_name, df_placeholder, header_placeholder)
+                csv_response = output_df.to_csv(index=False).encode('utf-8')
+                output_filename = st.text_input("LLM Response CSV File Name (Optional)", value=f"{category_name}-response.csv", help="Enter the desired name for your output CSV file")
+                st.download_button("Download LLM Response CSV", csv_response, output_filename, "text/csv")
 
 def handle_download_reviews():
     """Handle the download reviews tab functionality."""
@@ -182,77 +284,6 @@ def handle_download_reviews():
                 file_name=f"{category}-first_{num_examples}_reviews.csv",
                 mime="text/csv"
             )
-
-def handle_file_conversion():
-    """Handle the file conversion tab functionality."""
-    st.header("Convert Files to CSV of Sentences")
-    
-    upload_file = st.file_uploader(
-        "Upload File (Optional)", 
-        type=["txt", "docx"],
-        help="Optional. Upload a .txt file or a .docx file."
-    )
-    
-    output_filename = st.text_input(
-        "Output File Name",
-        value="converted_file.csv",
-        help="Enter the desired name for your output CSV file"
-    )
-    
-    if upload_file is not None:
-        input_df, review_column = process_file_upload(upload_file)
-        st.dataframe(input_df, use_container_width=True)
-        csv = input_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download CSV",
-            data=csv,
-            file_name=output_filename,
-            mime="text/csv"
-        )
-    else:
-        text_input = st.text_area(
-            "Enter Text (Optional, not needed if file uploaded)",
-            help="Enter text that will be split into sentences. Not needed if you uploaded a file above."
-        )
-        if text_input:
-            input_df, review_column = process_text_input(text_input)
-            st.dataframe(input_df, use_container_width=True)
-            csv = input_df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Download CSV",
-                data=csv,
-                file_name=output_filename,
-                mime="text/csv"
-            )
-
-def handle_llm_submission():
-    """Handle the LLM submission tab functionality."""
-    st.header("Submit Reviews to LLM")
-    
-    category_name = st.text_input(
-        "Review Category *",
-        help="Required. Enter the category that best describes these reviews (e.g. Electronics, Books, etc.)"
-    )
-    
-    upload_file = st.file_uploader(
-        "Upload File *", 
-        type=["csv", "xlsx"],
-        help="Required. Upload a .csv file or an Excel file with headers."
-    )
-    
-    if upload_file is not None:
-        input_df, input_column = process_file_upload(upload_file)
-        display_container = st.container()
-        header_placeholder = display_container.empty()
-        df_placeholder = display_container.empty()
-        with display_container:
-            header_placeholder.subheader("Input")
-            df_placeholder.dataframe(input_df, use_container_width=True)
-            
-            if st.button("Submit Reviews to LLM", disabled=not category_name):
-                output_df = process_reviews(input_df, input_column, category_name, df_placeholder, header_placeholder)
-                csv_response = output_df.to_csv(index=False).encode('utf-8')
-                st.download_button("Download Response CSV", csv_response, f"{category_name}-response.csv", "text/csv")
 
 def main():
     """Main function to run the Streamlit app."""
