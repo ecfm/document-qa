@@ -98,14 +98,6 @@ def display_results(sentences_df: pd.DataFrame, discarded_df: pd.DataFrame | Non
     if discarded_df is not None and not discarded_df.empty:
         st.subheader("Discarded Sentences")
         st.dataframe(discarded_df, use_container_width=True)
-        
-        csv_discarded = discarded_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download CSV of Discarded Sentences",
-            data=csv_discarded,
-            file_name=f"discarded_{output_filename}",
-            mime="text/csv"
-        )
     
     st.subheader("Validated Sentences")
     st.dataframe(sentences_df, use_container_width=True)
@@ -161,10 +153,10 @@ def process_reviews(input_df: pd.DataFrame, input_column: str, category_name: st
 
 def handle_file_conversion():
     """Handle the file conversion tab functionality."""
-    st.header("Convert Files to CSV of Sentences")
+    st.header("Convert Text to CSV of Sentences")
     
     upload_file = st.file_uploader(
-        "Upload File (Optional)", 
+        "Upload *.txt or *.docx File (Optional)", 
         type=["txt", "docx"],
         help="Optional. Upload a text file (.txt) or a Word document (.docx)"
     )
@@ -289,7 +281,7 @@ def main():
     """Main function to run the Streamlit app."""
     st.title("Voice of Customer Analysis with Supervised-Finetuned LLM")
     
-    tab1, tab2, tab3 = st.tabs(["Convert to CSV of Sentences", "Submit to LLM", "Download Amazon Reviews"])
+    tab1, tab2, tab3 = st.tabs(["Convert Text to CSV of Sentences", "Submit to LLM", "Download Amazon Reviews"])
     
     with tab1:
         handle_file_conversion()
