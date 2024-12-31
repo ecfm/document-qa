@@ -5,9 +5,17 @@ from utils.load_amazon_reviews import load_data
 from docx import Document
 from nltk.tokenize import sent_tokenize, word_tokenize 
 import nltk
+import re
 
 # Download required NLTK data
 nltk.download('punkt_tab')
+
+def remove_timestamps(text):
+    # Remove patterns like "[Name] 00:00:00" or "[inaudible 00:00:00]"
+    text = re.sub(r'\[[^\]]+\]\s*\d{2}:\d{2}:\d{2}|\[[^\]]+\d{2}:\d{2}:\d{2}\]', ' ', text)
+    # Remove any remaining timestamps
+    text = re.sub(r'\d{2}:\d{2}:\d{2}', ' ', text)
+    return text.strip()
 
 def split_into_paragraphs(text, sentence_min_len=8, sentence_max_len=200):
     # Simple sentence splitting on common punctuation
@@ -16,8 +24,8 @@ def split_into_paragraphs(text, sentence_min_len=8, sentence_max_len=200):
     filtered_sentences = []
     skipped_short_sentences = []
     skipped_long_sentences = []
-    
     for sentence in sentences:
+        sentence = sentence.strip().replace('\n', ' ')
         wc = len([word for word in word_tokenize(sentence) if word.isalnum()])
         if sentence_min_len <= wc <= sentence_max_len:
             filtered_sentences.append(sentence)
@@ -58,16 +66,19 @@ def process_file_upload(upload_file) -> tuple[pd.DataFrame, str]:
             input_column = st.selectbox("Select Review Column:", df.columns.tolist())
         else:
             input_column = df.columns[0]
+        # Clean timestamps from the selected column
+        df[input_column] = df[input_column].apply(remove_timestamps)
         return df, input_column
 
     elif file_type == "txt":
         content = upload_file.read().decode()
+        content = remove_timestamps(content)
         sentences = split_into_paragraphs(content)
         return pd.DataFrame({input_column: sentences}), input_column
     
     elif file_type == "docx":
         doc = Document(upload_file)
-        content = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+        content = "\n".join([remove_timestamps(para.text) for para in doc.paragraphs if para.text.strip()])
         sentences = split_into_paragraphs(content)
         return pd.DataFrame({input_column: sentences}), input_column
     
@@ -77,7 +88,8 @@ def process_file_upload(upload_file) -> tuple[pd.DataFrame, str]:
 def process_text_input(review_input: str) -> tuple[pd.DataFrame, str]:
     """Process text input and return dataframe and review column name."""
     input_column = 'Input'
-    reviews = [r.strip() for r in review_input.split('\n') if r.strip()]
+    cleaned_input = remove_timestamps(review_input)
+    reviews = [r.strip() for r in cleaned_input.split('\n') if r.strip()]
     return pd.DataFrame({input_column: reviews}), input_column
 
 def process_reviews(input_df: pd.DataFrame, input_column: str, category_name: str, df_placeholder: st.empty, header_placeholder: st.empty) -> pd.DataFrame:
@@ -173,12 +185,18 @@ def handle_download_reviews():
 
 def handle_file_conversion():
     """Handle the file conversion tab functionality."""
-    st.header("Convert Files to CSV")
+    st.header("Convert Files to CSV of Sentences")
     
     upload_file = st.file_uploader(
         "Upload File (Optional)", 
         type=["txt", "docx"],
         help="Optional. Upload a .txt file or a .docx file."
+    )
+    
+    output_filename = st.text_input(
+        "Output File Name",
+        value="converted_file.csv",
+        help="Enter the desired name for your output CSV file"
     )
     
     if upload_file is not None:
@@ -188,7 +206,7 @@ def handle_file_conversion():
         st.download_button(
             label="Download CSV",
             data=csv,
-            file_name="converted_file.csv",
+            file_name=output_filename,
             mime="text/csv"
         )
     else:
@@ -203,7 +221,7 @@ def handle_file_conversion():
             st.download_button(
                 label="Download CSV",
                 data=csv,
-                file_name="converted_text.csv",
+                file_name=output_filename,
                 mime="text/csv"
             )
 
@@ -240,7 +258,7 @@ def main():
     """Main function to run the Streamlit app."""
     st.title("Voice of Customer Analysis with Supervised-Finetuned LLM")
     
-    tab1, tab2, tab3 = st.tabs(["Convert to CSV", "Submit to LLM", "Download Amazon Reviews"])
+    tab1, tab2, tab3 = st.tabs(["Convert to CSV of Sentences", "Submit to LLM", "Download Amazon Reviews"])
     
     with tab1:
         handle_file_conversion()
