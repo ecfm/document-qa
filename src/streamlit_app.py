@@ -46,7 +46,7 @@ def validate_reviews_count(reviews: list) -> list:
 
 def process_file_upload(upload_file) -> tuple[pd.DataFrame, str]:
     """Process uploaded file and return dataframe and review column name."""
-    review_column = 'Sentence'
+    input_column = 'Input'
     file_type = upload_file.name.lower().split('.')[-1]
     
     if file_type == "csv" or file_type == "xlsx":
@@ -55,40 +55,40 @@ def process_file_upload(upload_file) -> tuple[pd.DataFrame, str]:
         else:
             df = pd.read_excel(upload_file)
         if len(df.columns) > 1:
-            review_column = st.selectbox("Select Review Column:", df.columns.tolist())
+            input_column = st.selectbox("Select Review Column:", df.columns.tolist())
         else:
-            review_column = df.columns[0]
-        return df, review_column
+            input_column = df.columns[0]
+        return df, input_column
 
     elif file_type == "txt":
         content = upload_file.read().decode()
         sentences = split_into_paragraphs(content)
-        return pd.DataFrame({review_column: sentences}), review_column
+        return pd.DataFrame({input_column: sentences}), input_column
     
     elif file_type == "docx":
         doc = Document(upload_file)
         content = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
         sentences = split_into_paragraphs(content)
-        return pd.DataFrame({review_column: sentences}), review_column
+        return pd.DataFrame({input_column: sentences}), input_column
     
     else:
         raise ValueError(f"Unsupported file type: {file_type}")
 
 def process_text_input(review_input: str) -> tuple[pd.DataFrame, str]:
     """Process text input and return dataframe and review column name."""
-    review_column = 'Review'
+    input_column = 'Input'
     reviews = [r.strip() for r in review_input.split('\n') if r.strip()]
-    return pd.DataFrame({review_column: reviews}), review_column
+    return pd.DataFrame({input_column: reviews}), input_column
 
-def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: str, df_placeholder: st.empty, header_placeholder: st.empty) -> pd.DataFrame:
+def process_reviews(input_df: pd.DataFrame, input_column: str, category_name: str, df_placeholder: st.empty, header_placeholder: st.empty) -> pd.DataFrame:
     """Process reviews through the LLM and return results."""
-    reviews = input_df[review_column].tolist()
+    reviews = input_df[input_column].tolist()
     reviews = validate_reviews_count(reviews)
     
     # Validate review lengths
     valid_reviews = [validate_review_length(review) for review in reviews]
     input_df = input_df.copy()
-    input_df[review_column] = valid_reviews
+    input_df[input_column] = valid_reviews
     
     output_df = input_df.copy()
     output_df['LLM Response'] = ''
@@ -110,7 +110,7 @@ def process_reviews(input_df: pd.DataFrame, review_column: str, category_name: s
         
         progress_text.text(f"Processing review {i+1}/{total} (This may take a few minutes)")
         progress_bar.progress((i+1)/total)
-        review = row[review_column]
+        review = row[input_column]
         response = call_api(category_name, review, status_container=status_container)
         output_df.at[i, 'LLM Response'] = response
         df_placeholder.dataframe(output_df, use_container_width=True)
@@ -223,7 +223,7 @@ def handle_llm_submission():
     )
     
     if upload_file is not None:
-        input_df, review_column = process_file_upload(upload_file)
+        input_df, input_column = process_file_upload(upload_file)
         display_container = st.container()
         header_placeholder = display_container.empty()
         df_placeholder = display_container.empty()
@@ -232,7 +232,7 @@ def handle_llm_submission():
             df_placeholder.dataframe(input_df, use_container_width=True)
             
             if st.button("Submit Reviews to LLM", disabled=not category_name):
-                output_df = process_reviews(input_df, review_column, category_name, df_placeholder, header_placeholder)
+                output_df = process_reviews(input_df, input_column, category_name, df_placeholder, header_placeholder)
                 csv_response = output_df.to_csv(index=False).encode('utf-8')
                 st.download_button("Download Response CSV", csv_response, f"{category_name}-response.csv", "text/csv")
 
