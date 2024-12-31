@@ -155,12 +155,18 @@ def handle_file_conversion():
     """Handle the file conversion tab functionality."""
     st.header("Convert Text to CSV of Sentences")
     
+    # Initialize session state for storing file content
+    if 'file_content' not in st.session_state:
+        st.session_state.file_content = None
+    if 'text_input' not in st.session_state:
+        st.session_state.text_input = None
+    
     upload_file = st.file_uploader(
         "Upload *.txt or *.docx File (Optional)", 
         type=["txt", "docx"],
-        help="Optional. Upload a text file (.txt) or a Word document (.docx)"
+        help="Optional. Upload a text file (.txt) or a Word document (.docx)",
+        key="file_uploader"
     )
-    
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -174,13 +180,20 @@ def handle_file_conversion():
         file_type = upload_file.name.lower().split('.')[-1]
         
         try:
-            if file_type in ["txt", "docx"]:
-                sentences_df, input_column, discarded = process_text_or_doc_file(
-                    upload_file, sentence_min_len, sentence_max_len
-                )
-                discarded_df = pd.DataFrame(discarded) if discarded else None
+            # Store file content in session state if it's a new file
+            if st.session_state.file_content is None or upload_file != st.session_state.last_uploaded_file:
+                if file_type == "txt":
+                    st.session_state.file_content = upload_file.read().decode()
+                elif file_type == "docx":
+                    doc = Document(upload_file)
+                    st.session_state.file_content = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+                st.session_state.last_uploaded_file = upload_file
             
-            display_results(sentences_df, discarded_df, output_filename)
+            if file_type in ["txt", "docx"]:
+                sentences, discarded = process_text_document(st.session_state.file_content, sentence_min_len, sentence_max_len)
+                sentences_df = pd.DataFrame({"Input": sentences})
+                discarded_df = pd.DataFrame(discarded) if discarded else None
+                display_results(sentences_df, discarded_df, output_filename)
             
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
@@ -188,13 +201,18 @@ def handle_file_conversion():
     else:
         text_input = st.text_area(
             "Enter Text (Optional, not needed if file uploaded)",
-            help="Enter text that will be split into sentences. Not needed if you uploaded a file above."
+            help="Enter text that will be split into sentences. Not needed if you uploaded a file above.",
+            key="text_area"
         )
+        
+        # Store text input in session state if it changes
+        if text_input != st.session_state.text_input:
+            st.session_state.text_input = text_input
+        
         if text_input:
             sentences, discarded = process_text_document(text_input, sentence_min_len, sentence_max_len)
             sentences_df = pd.DataFrame({"Input": sentences})
             discarded_df = pd.DataFrame(discarded) if discarded else None
-            
             display_results(sentences_df, discarded_df, output_filename)
 
 def handle_llm_submission():
