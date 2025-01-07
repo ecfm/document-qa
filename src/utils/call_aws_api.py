@@ -6,7 +6,7 @@ import streamlit as st
 url = st.secrets["AWS_API_URL"]
 headers = {'x-api-key': st.secrets["AWS_API_KEY"]}
 
-MAX_RETRY = 10
+MAX_RETRY = 20
 
 def call_api(category, review, retry=MAX_RETRY, status_container=None): 
     request_body = {
@@ -26,7 +26,10 @@ def call_api(category, review, retry=MAX_RETRY, status_container=None):
             retry_status.empty()
         return call_api(category, review, retry-1, status_container)  
     else:
-        raise Exception(response.json())
+        if retry == 0:
+            raise TimeoutError("Max retries reached. The server takes unexpected long to load. Please try again.")
+        else:
+            raise RuntimeError(response.json())
 
 if __name__ == "__main__":
     call_api("sleep aids", "I utilized breathing techniques with it like inhaling, hold, exhaling, hold and this spray paired with that is great! This has a frosty cool lavender scent not to strong very light but you can catch the smell when its on something or blankets.")

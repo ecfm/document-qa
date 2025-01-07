@@ -141,7 +141,14 @@ def process_reviews(input_df: pd.DataFrame, input_column: str, category_name: st
         progress_text.text(f"Processing review {i+1}/{total} (This may take a few minutes)")
         progress_bar.progress((i+1)/total)
         review = row[input_column]
-        response = call_api(category_name, review, status_container=status_container)
+        try:
+            response = call_api(category_name, review, status_container=status_container)
+        except TimeoutError:
+            st.error("Max retries reached. The server takes unexpected long to load. Please try again.")
+            break
+        except RuntimeError as e:
+            st.error(f"Error processing review {i+1}: {str(e)}")
+            raise e
         output_df.at[i, 'LLM Response'] = response
         df_placeholder.dataframe(output_df, use_container_width=True)
     
