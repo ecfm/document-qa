@@ -229,7 +229,7 @@ def handle_llm_submission():
     st.header("Submit Sentences to LLM")
     
     category_name = st.text_input(
-        "Product/Service Category (Press Enter↵ to Confirm)*",
+        "Product/Service Category of the Sentences (Press Enter↵ to Confirm)*",
         help="Required. Enter the category that best describes these sentences (e.g. Electronics, Books, etc.)"
     )
     
