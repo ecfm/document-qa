@@ -177,9 +177,11 @@ def handle_file_conversion():
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        output_filename = st.text_input("Output CSV File Name (Optional)", value="converted_file.csv", help="Enter the desired name for your output CSV file")  
+        output_filename = st.text_input("Output CSV File Name (Optional)", value="converted_file.csv", help="Enter the desired name for your output CSV file")
+        if not output_filename.endswith(".csv"):
+            output_filename += ".csv"
     with col2:
-        sentence_min_len = st.number_input("Min Words per Sentence (Optional)", value=8, min_value=1)
+        sentence_min_len = st.number_input("Min Words per Sentence (Optional)", value=4, min_value=1)
     with col3:
         sentence_max_len = st.number_input("Max Words per Sentence (Optional)", value=200, min_value=1)
     
@@ -224,15 +226,15 @@ def handle_file_conversion():
 
 def handle_llm_submission():
     """Handle the LLM submission tab functionality."""
-    st.header("Submit Reviews to LLM")
+    st.header("Submit Sentences to LLM")
     
     category_name = st.text_input(
-        "Review Category *",
-        help="Required. Enter the category that best describes these reviews (e.g. Electronics, Books, etc.)"
+        "Product/Service Category (Press Enter↵ to Confirm)*",
+        help="Required. Enter the category that best describes these sentences (e.g. Electronics, Books, etc.)"
     )
     
     upload_file = st.file_uploader(
-        "Upload File *", 
+        "Upload File (CSV or Excel) *", 
         type=["csv", "xlsx"],
         help="Required. Upload a .csv file or an Excel file with headers."
     )
@@ -245,8 +247,9 @@ def handle_llm_submission():
         with display_container:
             header_placeholder.subheader("Input")
             df_placeholder.dataframe(input_df, use_container_width=True)
-            
-            if st.button("Submit Reviews to LLM", disabled=not category_name):
+            if not category_name:
+                st.warning("Please set a Product/Service Category to enable submitting the sentences to LLM.")
+            if st.button("Submit Sentences to LLM", disabled=not category_name):
                 output_df = process_reviews(input_df, input_column, category_name, df_placeholder, header_placeholder)
                 csv_response = output_df.to_csv(index=False).encode('utf-8')
                 output_filename = st.text_input("LLM Response CSV File Name (Optional)", value=f"{category_name}-response.csv", help="Enter the desired name for your output CSV file")
