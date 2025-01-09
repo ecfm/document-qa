@@ -25,7 +25,7 @@ def split_into_paragraphs(text, sentence_min_len=8, sentence_max_len=200):
     discarded_sentences = []
     for sentence in sentences:
         sentence = sentence.strip().replace('\n', ' ')
-        wc = len([word for word in word_tokenize(sentence) if word.isalnum()])
+        wc = len(word_tokenize(sentence))
         if sentence_min_len <= wc <= sentence_max_len:
             filtered_sentences.append(sentence)
         else:
