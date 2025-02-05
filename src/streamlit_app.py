@@ -50,6 +50,7 @@ def validate_review_length(review: str) -> str:
 def validate_reviews_count(reviews: list) -> list:
     """Validate and limit the number of reviews."""
     if len(reviews) > MAX_REVIEWS:
+        st.warning(f"Currently, we only support up to {MAX_REVIEWS} sentences. Truncating to first {MAX_REVIEWS} sentences.")
         return reviews[:MAX_REVIEWS]
     return reviews
 
@@ -226,7 +227,7 @@ def handle_file_conversion():
 
 def handle_llm_submission():
     """Handle the LLM submission tab functionality."""
-    st.header("Submit Sentences to LLM")
+    st.header(f"Submit Sentences to LLM (at most {MAX_REVIEWS} each time)")
     
     category_name = st.text_input(
         "Product/Service Category of the Sentences (Press Enter↵ to Confirm)*",
@@ -249,7 +250,7 @@ def handle_llm_submission():
             df_placeholder.dataframe(input_df, use_container_width=True)
             if not category_name:
                 st.warning("Please set a Product/Service Category to enable submitting the sentences to LLM.")
-            if st.button("Submit Sentences to LLM", disabled=not category_name):
+            if st.button(f"Submit Sentences to LLM (at most {MAX_REVIEWS} each time)", disabled=not category_name):
                 output_df = process_reviews(input_df, input_column, category_name, df_placeholder, header_placeholder)
                 csv_response = output_df.to_csv(index=False).encode('utf-8')
                 output_filename = st.text_input("LLM Response CSV File Name (Optional)", value=f"{category_name}-response.csv", help="Enter the desired name for your output CSV file")
