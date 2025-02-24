@@ -90,8 +90,6 @@ def process_tabular_file(upload_file) -> tuple[pd.DataFrame, str]:
     if len(df.columns) > 1:
         input_column = st.selectbox("Select Review Column:", df.columns.tolist())
     
-    # Clean timestamps from the selected column
-    df[input_column] = df[input_column].apply(remove_timestamps)
     return df, input_column
 
 def display_results(sentences_df: pd.DataFrame, discarded_df: pd.DataFrame | None, output_filename: str):
@@ -251,6 +249,8 @@ def handle_llm_submission():
             if not category_name:
                 st.warning("Please set a Product/Service Category to enable submitting the sentences to LLM.")
             if st.button(f"Submit Sentences to LLM (at most {MAX_REVIEWS} each time)", disabled=not category_name):
+                # Clean timestamps from the selected column
+                input_df[input_column] = input_df[input_column].apply(remove_timestamps)
                 output_df = process_reviews(input_df, input_column, category_name, df_placeholder, header_placeholder)
                 csv_response = output_df.to_csv(index=False).encode('utf-8')
                 output_filename = st.text_input("LLM Response CSV File Name (Optional)", value=f"{category_name}-response.csv", help="Enter the desired name for your output CSV file")
