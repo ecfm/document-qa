@@ -91,12 +91,13 @@ def process_tabular_file(upload_file) -> tuple[pd.DataFrame, str]:
     elif len(df.columns) > 1:
         input_column = st.selectbox(
             "Select Input Column *", 
-            df.columns.tolist(),
+            options=[""] + df.columns.tolist(),
+            index=0,
             help="Required. Select the column containing the text to analyze.",
             key="input_column"
         )
         if not input_column:
-            st.error("Please select an input column to continue")
+            st.warning("Please select an input column to continue")
             st.stop()
     
     return df, input_column
