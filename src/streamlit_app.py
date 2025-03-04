@@ -83,11 +83,23 @@ def process_tabular_file(upload_file) -> tuple[pd.DataFrame, str]:
         try:
             df = pd.read_csv(upload_file)
         except Exception:
-            content = upload_file.read()
-            encoding = chardet.detect(content)['encoding']
-            upload_file.seek(0)
-            df = pd.read_csv(upload_file, encoding=encoding)
-            
+            try:
+                content = upload_file.read()
+                detected_encoding = chardet.detect(content)['encoding']
+                upload_file.seek(0)
+                df = pd.read_csv(upload_file, encoding=detected_encoding)
+            except UnicodeDecodeError:
+                # If the detected encoding fails, try common encodings
+                upload_file.seek(0)
+                for encoding in ['Windows-1252', 'latin1', 'ISO-8859-1', 'cp1252', 'utf-8-sig']:
+                    try:
+                        upload_file.seek(0)
+                        df = pd.read_csv(upload_file, encoding=encoding)
+                        print(f"Successfully read with {encoding} encoding")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                        
     elif file_type == "xlsx":
         df = pd.read_excel(upload_file)
     else:
