@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import chardet
 from utils.call_aws_api import call_api
 from utils.load_amazon_reviews import load_data
 from docx import Document
@@ -80,7 +81,12 @@ def process_tabular_file(upload_file) -> tuple[pd.DataFrame, str]:
     file_type = upload_file.name.lower().split('.')[-1]
     
     if file_type == "csv":
-        df = pd.read_csv(upload_file)
+        try:
+            df = pd.read_csv(upload_file)
+        except Exception:
+            with open(upload_file, 'rb') as f:
+                df = pd.read_csv(f, encoding=chardet.detect(f.read())['encoding'])
+            
     elif file_type == "xlsx":
         df = pd.read_excel(upload_file)
     else:
