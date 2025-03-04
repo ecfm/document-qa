@@ -85,6 +85,7 @@ def process_tabular_file(upload_file) -> tuple[pd.DataFrame, str]:
         except Exception:
             content = upload_file.read()
             encoding = chardet.detect(content)['encoding']
+            upload_file.seek(0)
             df = pd.read_csv(upload_file, encoding=encoding)
             
     elif file_type == "xlsx":
