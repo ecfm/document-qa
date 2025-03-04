@@ -7,7 +7,7 @@ from docx import Document
 from nltk.tokenize import sent_tokenize, word_tokenize 
 import nltk
 import re
-
+import io
 # Download required NLTK data
 nltk.download('punkt_tab')
 
@@ -84,8 +84,9 @@ def process_tabular_file(upload_file) -> tuple[pd.DataFrame, str]:
         try:
             df = pd.read_csv(upload_file)
         except Exception:
-            with open(upload_file, 'rb') as f:
-                df = pd.read_csv(f, encoding=chardet.detect(f.read())['encoding'])
+            content = upload_file.read()
+            encoding = chardet.detect(content)['encoding']
+            df = pd.read_csv(io.BytesIO(content), encoding=encoding)
             
     elif file_type == "xlsx":
         df = pd.read_excel(upload_file)
