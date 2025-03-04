@@ -3,3 +3,4 @@ datasets
 python-docx
 pandas
 nltk
+chardet
