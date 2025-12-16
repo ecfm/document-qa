@@ -14,8 +14,8 @@ def call_api(category, review, retry=MAX_RETRY, status_container=None):
         "review": review
     }   
     response = requests.post(url, json=request_body, headers=headers)
-    if 'choices' in response.json() and 'text' in response.json()['choices']:
-        return response.json()['choices']['text']
+    if 'choices' in response.json() and 'text' in response.json()['choices'][0]:
+        return response.json()['choices'][0]['text']
     if 'generation' in response.json():
         return response.json()['generation']
     if 'errorMessage' in response.json() and retry > 0:
