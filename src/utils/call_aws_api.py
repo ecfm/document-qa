@@ -14,9 +14,11 @@ def call_api(category, review, retry=MAX_RETRY, status_container=None):
         "review": review
     }   
     response = requests.post(url, json=request_body, headers=headers)
+    if 'choices' in response.json() and 'text' in response.json()['choices']:
+        return response.json()['choices']['text']
     if 'generation' in response.json():
         return response.json()['generation']
-    elif 'errorMessage' in response.json() and retry > 0:
+    if 'errorMessage' in response.json() and retry > 0:
         retry_status = status_container.empty() if status_container else None
         for i in range(10, 0, -1):
             if retry_status:
@@ -25,11 +27,10 @@ def call_api(category, review, retry=MAX_RETRY, status_container=None):
         if retry_status:
             retry_status.empty()
         return call_api(category, review, retry-1, status_container)  
+    if retry == 0:
+        raise TimeoutError("Max retries reached. The server takes unexpected long to load. Please try again.")
     else:
-        if retry == 0:
-            raise TimeoutError("Max retries reached. The server takes unexpected long to load. Please try again.")
-        else:
-            raise RuntimeError(response.json())
+        raise RuntimeError(response.json())
 
 if __name__ == "__main__":
     call_api("sleep aids", "I utilized breathing techniques with it like inhaling, hold, exhaling, hold and this spray paired with that is great! This has a frosty cool lavender scent not to strong very light but you can catch the smell when its on something or blankets.")
