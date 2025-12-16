@@ -4,3 +4,4 @@ python-docx
 pandas
 nltk
 chardet
+openpyxl
